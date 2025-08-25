@@ -1,0 +1,577 @@
+---
+title: "Context Bandits Analysis Code: Python + R"
+author: "Nora Harhen"
+format: 
+  html:
+    highlight-style: solarized-light
+jupyter: python3
+engine: python
+execute:
+  echo: true
+  warning: false
+---
+## Data Cleaning and Demographics 
+We're going to use python to clean the raw data. First, we'll merge the data from day 1 and day 2, remove unneccessary columns, and identify participants to exclude based on their performance. Second, we'll get the summary statistics of participants' demographic information (all participants, only included participants, and split by age group). Finally, we'll construct the regressor matrix to feed into R. 
+
+```{python}
+from _clean_data import *
+from _get_demographics import *
+from _analyze_choice_data import *
+from _make_regression_matrix import *
+from _analyze_memory_data import *
+from glob import glob
+import seaborn as sns
+import matplotlib.pyplot as plt
+import collections
+import pingouin as pg
+import csv
+
+import warnings
+warnings.filterwarnings('ignore')
+sns.set_context("talk")
+
+# construct the regressor matrix to feed into R  
+save_regression_matrix = False 
+
+```
+
+```{python}
+# Load data from days 1 and 2, clean data, and determine which participants should be excluded from analyeses based on their performance
+
+# get the data from both days 
+day_1_files = get_raw_data_filepaths(1)
+day_1_data_dict = day_1_participant_id_dict(day_1_files)
+day_2_files = get_raw_data_filepaths(2)
+
+all_data = pd.DataFrame()
+participants_to_exclude = []
+participants_to_include = []
+Excluded_Participant = collections.namedtuple('Excluded_Participant', ['participant_id', 'missing_response', 'insufficient_exploration','too_fast','distracted','late'])
+All_Excluded_Participants = []
+for f in day_2_files:
+    try:
+        day_2_df = pd.read_csv(f)
+        participant_id = int(day_2_df.participant_id.dropna().reset_index().participant_id[0])
+        full_sub_dataframe = merge_day_1_and_2_data(day_1_data_dict, day_2_df)
+        all_data = pd.concat([all_data, full_sub_dataframe])
+        should_exclude, failed_exclusion_criteria = exclude_participant(day_1_data_dict, day_2_df)
+        if should_exclude:
+            participants_to_exclude.append(participant_id)
+            P = Excluded_Participant(participant_id, failed_exclusion_criteria['missing_response'], failed_exclusion_criteria['insufficient_exploration'], failed_exclusion_criteria['too_fast'], failed_exclusion_criteria['distracted'], failed_exclusion_criteria['late'])
+            All_Excluded_Participants.append(P)
+        else:
+            participants_to_include.append(participant_id)
+    except:
+        print("Error reading file:")
+        print(f)
+        continue
+participants_to_exclude = np.unique(participants_to_exclude)
+participants_to_include = np.unique(participants_to_include)
+
+# Write the list of named tuples to a CSV file
+with open('excluded_participants.csv', 'w', newline='') as csvfile:
+    fieldnames = ['participant_id', 'missing_response', 'insufficient_exploration', 'too_fast', 'distracted', 'late']
+    writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+    
+    writer.writeheader()
+    for participant in All_Excluded_Participants:
+        writer.writerow(participant._asdict())
+
+```
+
+
+```{python}
+# get demographic information for participants 
+demographics = get_demographics(participants_to_include)
+demographics_excluded = get_demographics(participants_to_exclude)
+
+# full group stats
+full_group_stats = get_group_stats(demographics) # mean age, min age, max age, gender, race, hispanic
+child_stats = get_group_stats(demographics.query("Age < 13"))
+adolescent_stats = get_group_stats(demographics.query("Age >= 13 & Age < 18"))
+adult_stats = get_group_stats(demographics.query("Age >= 18"))
+
+full_group_stats_excluded = get_group_stats(demographics_excluded) # mean age, min age, max age, gender, race, hispanic
+
+
+```
+
+# construct the regressor matrix to feed into R  
+```{python}
+
+if save_regression_matrix:
+    regression_matrix = all_design_mat_long(all_data, participants_to_include)
+    regression_matrix.to_csv(f"regression_matrix_long_{datetime.now().strftime('%Y-%m-%d')}.csv", index=False)
+```
+## Analyze Memory Data 
+
+```{python}
+memory_df = all_memory(day_1_data_dict, day_2_files, participants_to_include)
+memory_df = memory_df.drop_duplicates(subset=['participant_id'])
+```
+
+### recognition memory performance
+Recognition memory was above chance, and there were no differences in performance with age.
+
+```{python}
+sns.regplot(x='age',y='d_prime', color= "#ad558c", data=memory_df)
+plt.plot([8,25],[0,0],"k--")
+plt.ylabel("d Prime")
+plt.xlabel("Age")
+plt.xlim(7.7,26.3)
+sns.despine(top=True, right=True)
+print(memory_df.d_prime.describe())
+print(stats.ttest_1samp(memory_df.d_prime, 0))
+print(pg.corr(memory_df.age, memory_df.d_prime, method = "spearman"))
+plt.savefig("plots/memory_d_prime_age.png",bbox_inches='tight',dpi=300)
+```
+
+
+
+### source memory performance
+
+Source memory performance was poor but was just above chance. There were no signifigant differences in performance with age.
+
+```{python}
+sns.regplot(x='age',y='source_acc', color= "#ad558c",data=memory_df)
+plt.plot([8,25],[0.16667,0.16667],"k--")
+plt.ylabel("Source Memory Accuracy")
+plt.xlabel("Age")
+plt.xlim(7.7,26.3)
+sns.despine(top=True, right=True)
+print(memory_df.source_acc.describe())
+print(stats.ttest_1samp(memory_df.source_acc, 0.16667))
+print(pg.corr(memory_df.age, memory_df.source_acc, method = "spearman"))
+plt.savefig("plots/memory_source_acc_age.png",bbox_inches='tight',dpi=300)
+```
+
+```{python}
+def get_probed_choice_relative_rt(day_1_dictionary, day_2_dataframe):
+    day_2_corrected_df = corrected_dataframe(day_1_dictionary, day_2_dataframe)
+    hit_trials = day_2_corrected_df.query("trial_type=='old' & correct==1").trial_n.values
+
+    day_2_choice_trials = day_2_dataframe.query("trial_type=='do_trial' & response>0")
+    day_2_choice_trials['zlog_rt'] = stats.zscore(np.log(day_2_choice_trials.rt + 1))
+    choice_trials_of_interest = hit_trials + 1
+    choice_trials_of_interest = day_2_choice_trials.query("trial_n in @choice_trials_of_interest")
+    probed_choice_relative_rt = choice_trials_of_interest.loc[:,['trial_n','response','zlog_rt']]
+    return probed_choice_relative_rt
+
+def all_relative_choice_rt(day_1_dictionary, day_2_files, participants_to_include):
+    rt_df = pd.DataFrame(columns=['participant_id','age','zlog_rt']) # object recognition memory 
+
+    for f in day_2_files:
+        try:
+            day_2_df = pd.read_csv(f)
+            participant_id = int(day_2_df.participant_id.dropna().reset_index().participant_id[0])
+            age = get_age(participant_id)
+            if participant_id in participants_to_include:
+                sub_rts = get_probed_choice_relative_rt(day_1_dictionary, day_2_df)
+                sub_rts['participant_id'] = participant_id
+                sub_rts['age'] = age
+                rt_df = pd.concat([rt_df,sub_rts])
+        except:
+            continue
+    return rt_df
+
+choice_rt_df = all_relative_choice_rt(day_1_data_dict, day_2_files, participants_to_include)
+
+```
+
+## Run mixed effects regression in R 
+
+First, we'll load in the data which is in wide format and transform it into long format to feed into the mixed effects multinomial model. 
+```{r}
+library(ggplot2)
+library(tidyverse) 
+library(dplyr)
+library(lme4)
+library(broom.mixed)
+library(ggeffects)
+library(marginaleffects)
+library(effectsize)
+library(mediation)
+library(ggpubr)
+
+setwd("/Users/nharhen/Desktop/Projects/context_bandits/HarhenBornsteinHartley2025_ContextBandits/memory_guided_dm/data_analysis")
+
+save_random_effects <- FALSE
+
+```
+
+
+```{r}
+regression_matrix = read.csv("regression_matrices/regression_matrix_long_2025-05-12.csv")
+regression_matrix$age_z <- as.numeric(scale(regression_matrix$age))
+
+m <- glmer(choice ~ (identity + reward_1 + reward_2 + reward_3 + probed_identity + probed_reward + context_rwd)*age_z + (1 + reward_1 + reward_2 + reward_3 + probed_identity + probed_reward + context_rwd | participant_id), data=regression_matrix, family = "binomial")
+summary(m)
+
+m_noAge <- glmer(choice ~ identity + reward_1 + reward_2 + reward_3 + probed_identity + probed_reward + context_rwd + (1 + reward_1 + reward_2 + reward_3 + probed_identity + probed_reward + context_rwd | participant_id), data=regression_matrix, family = "binomial")
+summary(m_noAge)
+
+saveRDS(m, "regression_models/mixed_effects_model_2025-05-12.rds")
+saveRDS(m_noAge, "regression_models/mixed_effects_model_no_age_2025-05-12.rds")
+```
+
+```{r}
+m <- readRDS("regression_models/mixed_effects_model_2025-05-12.rds")
+coef_df <- broom.mixed::tidy(m, effects = "fixed") %>%
+  mutate(
+    lower_ci = estimate - 1.96 * std.error,
+    upper_ci = estimate + 1.96 * std.error
+  )
+
+recent_experience <- coef_df %>%
+  filter(term == "identity" | term == "reward_1" | term == "reward_2" | term == "reward_3")
+
+distant_experience <- coef_df %>%
+  filter(term == "probed_identity" | term == "probed_reward" | term == "context_rwd")
+
+standardized_coefs <- standardize_parameters(m)
+
+```
+```{r}
+ggplot(recent_experience, aes(y = estimate, x = term)) +
+  geom_point(size=5, color="#3b74bf") +
+  geom_pointrange(aes(ymin = lower_ci, ymax = upper_ci), width = 0.2,position = position_dodge(width = 0.3), color="#3b74bf") +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+  ylim(-0.05, 1.05) +
+  ylab("Estimate") +
+  xlab("") +
+  scale_x_discrete(labels=c("identity" = "last choice", "reward_1" = expression(reward["-1"]),
+                              "reward_2" = expression(reward["-2"]), "reward_3" = expression(reward["-3"]))) +
+  theme_minimal() +
+    theme(text = element_text(size = 15, family="Avenir"),
+    axis.text.x=element_text(colour="black",family="Avenir"),
+    axis.text.y=element_text(colour="black",family="Avenir"),
+    axis.title.x=element_text(family="Avenir"),
+    axis.title.y=element_text(family="Avenir"), 
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_blank(),
+    axis.line.x = element_line(color = "black"),
+    axis.line.y = element_line(color = "black"))
+ggplot2::ggsave("plots/recent_experience_FINAL.png",bg = "white",width = 12, height = 12, units = "cm")
+
+```
+
+```{r}
+ggplot(distant_experience, aes(y = estimate, x = term)) +
+  geom_point(size=5,color="#84499c") +
+  geom_pointrange(aes(ymin = lower_ci, ymax = upper_ci), width = 0.2, position = position_dodge(width = 0.3),color="#84499c") +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+  ylim(-0.05, 1.05) +
+  ylab("Estimate") +
+  xlab("") +
+  scale_x_discrete(labels=c("probed_identity" = "choice on \n probed trial",
+                           "probed_reward" = "reward on \n probed trial", 
+                           "context_rwd" = "reward across \n probed context"),
+                  limits=c("probed_identity", "probed_reward", "context_rwd")) +
+  theme_minimal() +
+    theme(text = element_text(size = 15, family="Avenir"),
+    axis.text.x=element_text(colour="black",family="Avenir"),
+    axis.text.y=element_text(colour="black",family="Avenir"),
+    axis.title.x=element_text(family="Avenir"),
+    axis.title.y=element_text(family="Avenir"), 
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_blank(),
+    axis.line.x = element_line(color = "black"),
+    axis.line.y = element_line(color = "black"))
+
+ggplot2::ggsave("plots/distant_experience_FINAL.png",bg = "white",width = 12, height = 12, units = "cm")
+
+```
+
+```{r}
+pred_probe_identity <- predictions(m, newdata = datagrid(probed_identity = c(-1, 0, 1), age_z = c(-1, 0, 1)),conf_level=0.95)
+pred_probe_identity$age_group <- case_when(
+  pred_probe_identity$age_z == -1 ~ "child",
+  pred_probe_identity$age_z == 0 ~ "adolescent",
+  pred_probe_identity$age_z == 1 ~ "adult"
+)
+pred_probe_identity$age_group <- factor(pred_probe_identity$age_group, ordered=TRUE, levels=c("child", "adolescent", "adult"))
+
+
+ggplot(pred_probe_identity, aes(x = factor(probed_identity), y = estimate, color = age_group, group = age_group)) +
+  geom_point(position = position_dodge(width = 0.3),size=5) +
+  geom_pointrange(aes(ymin = conf.low, ymax = conf.high), 
+                width = 0.2, position = position_dodge(width = 0.3)) +
+  scale_color_manual(name = "age group",
+                    values = c("child" = "#db9deb", 
+                               "adolescent" = "#ad2acf",
+                               "adult" = "#631876"))+
+  scale_x_discrete(labels = c("-1" = "different", "0" = "irrelevant", "1" = "same")) +
+  labs(x = "choice on probed trial", y = "p(choice)") +
+  theme(text = element_text(size = 15, family="Avenir"),
+    axis.text.x=element_text(colour="black",family="Avenir"),
+    axis.text.y=element_text(colour="black",family="Avenir"),
+    axis.title.x=element_text(family="Avenir"),
+    axis.title.y=element_text(family="Avenir"), 
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_blank(),
+    axis.line.x = element_line(color = "black"),
+    axis.line.y = element_line(color = "black"))
+ 
+ ggplot2::ggsave("plots/probed_trial_identity_age_FINAL.png",bg = "white",width = 15, height = 12, units = "cm")
+
+```
+
+```{r}
+p <- ggpredict(m, terms = c("context_rwd", "age_z"))
+ggplot(p, aes(x = x, y = predicted, color = group, fill = group)) +
+  geom_line() +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), alpha = .15, color = NA) +
+     scale_color_manual(name = "age group",
+                    labels = c("-1" = "child", 
+                               "0" = "adolescent",
+                               "1" = "adult"),
+                    values = c("-1" = "#db9deb", 
+                               "0" = "#ad2acf",
+                               "1" = "#631876"),
+                    breaks = c("-1", "0", "1")) +
+  scale_fill_manual(name = "age group",
+                    labels = c("-1" = "child", 
+                               "0" = "adolescent",
+                               "1" = "adult"),
+                    values = c("-1" = "#db9deb", 
+                               "0" = "#ad2acf",
+                               "1" = "#631876"),
+                    breaks = c("-1", "0", "1")) +
+  theme_minimal() + 
+  labs(x = "reward across probed context", y = "p(choice)") +
+  theme(text = element_text(size = 15, family="Avenir"),
+    axis.text.x=element_text(colour="black",family="Avenir"),
+    axis.text.y=element_text(colour="black",family="Avenir"),
+    axis.title.x=element_text(family="Avenir"),
+    axis.title.y=element_text(family="Avenir"), 
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_blank(),
+    axis.line.x = element_line(color = "black"),
+    axis.line.y = element_line(color = "black"))
+
+ ggplot2::ggsave("plots/probed_context_rwd_age_FINAL.png",bg = "white",width = 15, height = 12, units = "cm")
+
+```
+
+```{r}
+m_noAge <- readRDS("regression_models/mixed_effects_model_no_age_2025-05-12.rds")
+
+# Extract fixed effects
+fixed_effects <- fixef(m_noAge)
+fixed_effects_df <- data.frame(
+  parameter = names(fixed_effects),
+  estimate = fixed_effects
+)
+
+# Extract random effects
+random_effects <- ranef(m_noAge)$participant_id
+random_effects_df <- data.frame(
+  participant_id = rownames(random_effects),
+  random_effects
+)
+
+# Add descriptive column names
+colnames(random_effects_df) <- c("participant_id", 
+                                "Intercept",
+                                "reward_1", 
+                                "reward_2",
+                                "reward_3",
+                                "probed_identity",
+                                "probed_reward", 
+                                "context_rwd")
+
+if (save_random_effects) {
+  write.csv(fixed_effects_df, "regression_models/fixed_effects_without_age.csv", row.names = FALSE)
+  write.csv(random_effects_df, "regression_models/random_effects_without_age.csv", row.names = FALSE)
+}
+
+other_task_data <- read.csv("other_task_data/two_other_tasks_data.csv") 
+
+random_effects_df <- random_effects_df %>%
+  mutate(participant_id = as.numeric(participant_id)) %>%
+  left_join(other_task_data, by = "participant_id") 
+
+random_effects_df$age_z <- as.numeric(scale(as.numeric(random_effects_df$age)))
+random_effects_df <- random_effects_df %>%
+  mutate(age_group = case_when(
+    age < 13 ~ "child",
+    age >= 13 & age < 18 ~ "adolescent", 
+    age >= 18 ~ "adult"
+  )) %>%
+  mutate(age_group = factor(age_group, levels = c("child", "adolescent", "adult"))) %>%
+  drop_na()
+
+if (save_random_effects) {
+    write.csv(random_effects_df, "other_task_data/random_effects_df_w_other_task_data.csv", row.names = FALSE)
+}
+
+```
+
+```{r}
+
+p <- ggplot(random_effects_df, aes(x = ldi, y = context_rwd)) +
+  geom_point(position = position_dodge(width = 0.3),size=3, color = '#84499c', alpha = 0.8) +
+  geom_smooth(method = "lm", color = '#84499c', fill = '#84499c', alpha = 0.1) +
+  labs(x = "lure discrimination index", y = "probed context effect") +
+  theme_minimal() +
+  theme(text = element_text(size = 15, family="Avenir"),
+    axis.text.x=element_text(colour="black",family="Avenir"),
+    axis.text.y=element_text(colour="black",family="Avenir"),
+    axis.title.x=element_text(family="Avenir"),
+    axis.title.y=element_text(family="Avenir"), 
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_blank(),
+    axis.line.x = element_line(color = "black"),
+    axis.line.y = element_line(color = "black"))
+show(p)
+ggplot2::ggsave("plots/ctx_reward_ldi.png",bg = "white",width = 12, height = 12, units = "cm")
+
+```
+
+```{r}
+
+p <- ggplot(random_effects_df, aes(x = probed_reward, y = mb_effect, color = age_group, group = age_group, fill = age_group)) +
+  geom_point(position = position_dodge(width = 0.3),size=3, alpha = 0.8) +
+  geom_smooth(method = "lm", alpha = 0.1) +
+  scale_color_manual(name = "age group",
+                    values = c("child" = "#db9deb", 
+                               "adolescent" = "#ad2acf",
+                               "adult" = "#631876")) +
+  scale_fill_manual(name = "age group",
+                    values = c("child" = "#db9deb", 
+                               "adolescent" = "#ad2acf",
+                               "adult" = "#631876")) +
+  labs(x = "reward on probed trial", y = "model-based effect") +
+  xlim(-0.3,0.3) +
+  theme_minimal() +
+  theme(text = element_text(size = 15, family="Avenir"),
+    axis.text.x=element_text(colour="black",family="Avenir"),
+    axis.text.y=element_text(colour="black",family="Avenir"),
+    axis.title.x=element_text(family="Avenir"),
+    axis.title.y=element_text(family="Avenir"), 
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_blank(),
+    axis.line.x = element_line(color = "black"),
+    axis.line.y = element_line(color = "black"))
+show(p)
+ggplot2::ggsave("plots/probe_identity_mb_flipped.png",bg = "white",width = 15, height = 12, units = "cm")
+
+```
+
+```{r}
+# relationship between ldi and memory-guided decision making
+
+model_1 <- lm(context_rwd ~ ldi, data = random_effects_df)
+summary(model_1)
+
+model_2 <- lm(probed_reward ~ ldi, data = random_effects_df)
+summary(model_2)
+
+model_3 <- lm(probed_identity ~ ldi, data = random_effects_df)
+summary(model_3)
+
+
+model_4 <- lm(mb_effect ~ context_rwd*age_z, data = random_effects_df)
+summary(model_4)
+
+model_5 <- lm(mb_effect ~ probed_reward*age_z, data = random_effects_df)
+summary(model_5)
+
+model_6 <- lm(mb_effect ~ probed_identity*age_z, data = random_effects_df)
+summary(model_6)
+```
+```{r}
+# Extract coefficients, SE, and p-values from model_1
+model_1_summary <- data.frame(
+  term = c("(Intercept)", "LDI"),
+  estimate = round(coef(model_1), 2),
+  std.error = round(summary(model_1)$coefficients[,"Std. Error"], 2),
+  p.value = round(summary(model_1)$coefficients[,"Pr(>|t|)"], 2)
+)
+ggtexttable(model_1_summary, rows = NULL, theme = ttheme("blank")) %>%
+  tab_add_title("influence of probed context") %>%
+  tab_add_hline(at.row = 1:3, row.side = "top", linewidth = 2)
+ggsave("regression_models/ldi_probed_context_table.png", width = 8, height = 3, units = "cm")
+
+
+model_2_summary <- data.frame(
+  term = c("(Intercept)", "LDI"),
+  estimate = round(coef(model_2), 2),
+  std.error = round(summary(model_2)$coefficients[,"Std. Error"], 2),
+  p.value = round(summary(model_2)$coefficients[,"Pr(>|t|)"], 2)
+)
+ggtexttable(model_2_summary, rows = NULL, theme = ttheme("blank")) %>%
+  tab_add_title("influence of reward on probed trial") %>%
+  tab_add_hline(at.row = 1:3, row.side = "top", linewidth = 2)
+ggsave("regression_models/ldi_probed_trial_reward_table.png",  width = 8, height = 3, units = "cm")
+
+model_3_summary <- data.frame(
+  term = c("(Intercept)", "LDI"),
+  estimate = round(coef(model_3), 2),
+  std.error = round(summary(model_3)$coefficients[,"Std. Error"], 2),
+  p.value = round(summary(model_3)$coefficients[,"Pr(>|t|)"], 2)
+)
+ggtexttable(model_3_summary, rows = NULL, theme = ttheme("blank")) %>%
+  tab_add_title("influence of reward on probed trial") %>%
+  tab_add_hline(at.row = 1:3, row.side = "top", linewidth = 2)
+ggsave("regression_models/ldi_probed_trial_choice_table.png",  width = 8, height = 3, units = "cm")
+```
+```{r}
+model_4_summary <- data.frame(
+  term = c("(Intercept)", "probed context", "age", "probed context*age"),
+  estimate = round(coef(model_4), 2),
+  std.error = round(summary(model_4)$coefficients[,"Std. Error"], 2),
+  p.value = round(summary(model_4)$coefficients[,"Pr(>|t|)"], 2)
+)
+ggtexttable(model_4_summary, rows = NULL, theme = ttheme("blank")) %>%
+  tab_add_title("forward planning") %>%
+  tab_add_hline(at.row = 1:3, row.side = "top", linewidth = 2)
+ggsave("regression_models/mb_probed_context_table.png",  width = 10, height = 4.5, units = "cm")
+
+model_5_summary <- data.frame(
+  term = c("(Intercept)", "probed trial reward", "age", "probed trial reward*age"),
+  estimate = round(coef(model_5), 2),
+  std.error = round(summary(model_5)$coefficients[,"Std. Error"], 2),
+  p.value = round(summary(model_5)$coefficients[,"Pr(>|t|)"], 2)
+)
+ggtexttable(model_5_summary, rows = NULL, theme = ttheme("blank")) %>%
+  tab_add_title("forward planning") %>%
+  tab_add_hline(at.row = 1:3, row.side = "top", linewidth = 2)
+ggsave("regression_models/mb_probed_trial_reward_table.png",  width = 10, height = 4.5, units = "cm")
+
+model_6_summary <- data.frame(
+  term = c("(Intercept)", "probed trial choice", "age", "probed trial choice*age"),
+  estimate = round(coef(model_6), 2),
+  std.error = round(summary(model_6)$coefficients[,"Std. Error"], 2),
+  p.value = round(summary(model_6)$coefficients[,"Pr(>|t|)"], 2)
+)
+ggtexttable(model_6_summary, rows = NULL, theme = ttheme("blank")) %>%
+  tab_add_title("forward planning") %>%
+  tab_add_hline(at.row = 1:3, row.side = "top", linewidth = 2)
+ggsave("regression_models/mb_probed_trial_choice_table.png",  width = 8, height = 3, units = "cm")
+```
+
+```{r}
+# mediation analysis
+model.M <- lm(ldi ~ age_z, data = random_effects_df)
+summary(model.M)
+
+model.Y <- lm(context_rwd ~ age_z + ldi, data = random_effects_df)
+summary(model.Y)
+
+results <- mediate(model.M, model.Y, treat='age_z', mediator='ldi',
+                   boot=TRUE, sims=500)
+summary(results)
+```
+
+
+```{r}
+model.0 <- lm(mb_effect ~ age_z, data = random_effects_df)
+summary(model.0)
+```

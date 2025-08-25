@@ -1,0 +1,5 @@
+"success","trial_type","trial_index","time_elapsed","internal_node_id","rt","stimulus","key_press","subject_id","participant_id","age","gender","prompt"
+"true","fullscreen","0","2702","0.0-0.0","","","","","","","",""
+"","pavlovia","1","2706","0.0-1.0","","","","","","","",""
+"","welc_back","2","15524","0.0-2.0","null","run_exp/static/audio/clip_29_welcome_back.m4a","null","36","5","8","male","<div class='center'><p>Welcome to day 2!</p><p> Yesterday, you were the head captain of a pirate ship. You and your fellow pirates robbed shipsfor their gold and traveled to six different islands .</p></div>"
+"","html-keyboard-response","3","15910","0.0-3.0","385.2000000188127","<div class='center'><p>Welcome to day 2!</p><p> Yesterday, you were the head captain of a pirate ship. You and your fellow pirates robbed shipsfor their gold and traveled to six different islands .</p><p><b>[Press the space bar to continue]</b></p></div>","32","","","","",""

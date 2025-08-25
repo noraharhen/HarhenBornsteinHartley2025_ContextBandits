@@ -1,0 +1,197 @@
+participant_id,Age,Gender,Race,Hispanic
+5,8.91,Male,Mixed Race,N
+46,8.84,Male,Caucasian/White,N
+18,8.35,Female,Caucasian/White,N
+223,9.36,Male,Mixed Race,N
+65,9.73,Female,Mixed Race,N
+231,10.41,Female,Caucasian/White,N
+73,11.32,Female,Caucasian/White,N
+520,12.2,Male,Caucasian/White,N
+3,12.84,Female,Caucasian/White,N
+64,11.81,Female,Mixed Race,N
+230,11.47,Female,Caucasian/White,N
+521,10.1,Male,Caucasian/White,N
+163,8.45,Female,Mixed Race,N
+8,16.05,Female,Mixed Race,N
+385,8.09,Male,Caucasian/White,N
+498,8.96,Male,Mixed Race,N
+148,9.87,Male,Caucasian/White,N
+601,9.86,Female,Asian,N
+147,9.88,Female,Caucasian/White,N
+384,10.64,Female,Caucasian/White,N
+69,10.04,Female,Black/African American,N
+704,11.72,Male,Caucasian/White,N
+227,12.36,Male,Caucasian/White,N
+190,12.31,Male,Caucasian/White,N
+749,12.19,Female,Black/African American,N
+497,12.26,Female,Mixed Race,N
+191,9.86,Male,Caucasian/White,N
+251,8.99,Male,Asian,N
+208,8.55,Male,Mixed Race,N
+171,8.04,Male,Caucasian/White,N
+518,8.99,Male,Caucasian/White,N
+816,8.6,Female,Mixed Race,Y
+22,9.06,Male,Asian,N
+332,9.29,Male,Asian,N
+702,9.75,Male,Caucasian/White,N
+717,9.26,Female,Caucasian/White,N
+401,9.86,Female,Mixed Race,Y
+626,10.89,Male,Asian,N
+625,10.89,Male,Asian,N
+615,10.56,Male,Asian,N
+900,10.47,Female,Caucasian/White,N
+759,10.5,Female,Caucasian/White,N
+661,11.02,Female,Asian,N
+234,10.91,Female,Asian,N
+229,10.42,Female,Mixed Race,N
+547,10.16,Female,Caucasian/White,N
+737,11.45,Male,Mixed Race,N
+738,11.45,Male,Mixed Race,N
+29,11.03,Male,Caucasian/White,N
+335,11.66,Female,Asian,N
+104,11.43,Female,Caucasian/White,N
+936,11.51,Female,Mixed Race,Y
+727,11.99,Female,Caucasian/White,N
+844,12.08,Male,Black/African American,Y
+259,12.93,Male,Mixed Race,Y
+124,12.45,Male,Caucasian/White,N
+72,12.19,Female,Caucasian/White,N
+774,12.01,Female,Caucasian/White,N
+716,12.05,Female,Caucasian/White,N
+923,13.02,Male,Black/African American,Y
+758,13.74,Male,Caucasian/White,N
+659,13.18,Male,Asian,N
+887,13.13,Female,Caucasian/White,N
+710,13.5,Female,Mixed Race,N
+672,13.09,Female,Black/African American,N
+2,14.94,Male,Caucasian/White,N
+136,14.42,Male,Caucasian/White,N
+804,14.12,Male,Caucasian/White,N
+189,14.18,Male,Caucasian/White,N
+946,14.68,Female,Black/African American,Y
+132,14.82,Female,Caucasian/White,N
+150,15.62,Male,Mixed Race,Y
+928,15.05,Male,Caucasian/White,N
+611,15.7,Male,Mixed Race,N
+560,15.48,Male,Asian,N
+51,15.6,Female,Black/African American,Y
+843,15.77,Female,Black/African American,Y
+250,15.42,Female,Mixed Race,Y
+603,16.68,Male,Mixed Race,Y
+709,16.68,Male,Mixed Race,N
+658,16.56,Male,Asian,N
+37,16.03,Male,Caucasian/White,N
+937,16.85,Female,Mixed Race,Y
+905,16.21,Female,Mixed Race,Y
+249,16.36,Female,Black/African American,N
+247,17.4,Male,Asian,N
+260,17.65,Male,Mixed Race,Y
+71,17.08,Female,Caucasian/White,N
+233,17.94,Female,Asian,N
+403,17.22,Female,Caucasian/White,N
+286,18.94,Male,Asian,N
+829,18.38,Male,Asian,N
+913,18.99,Male,Asian,N
+363,18.54,Female,Asian,N
+392,18.84,Female,Asian,N
+701,18.21,Female,Asian,N
+652,19.9,Male,Asian,N
+360,19.68,Female,Black/African American,N
+421,19.43,Female,Asian,N
+220,19.23,Female,Asian,N
+463,19.26,Female,Caucasian/White,N
+293,19.74,Female,Asian,N
+754,20.02,Male,Asian,N
+42,20.77,Female,Black/African American,N
+179,20.91,Female,Asian,N
+423,20.05,Female,Asian,N
+371,20.67,Female,Asian,N
+588,21.37,Male,Caucasian/White,N
+470,21.81,Male,Asian,N
+784,21.01,Female,Asian,N
+478,21.3,Female,Mixed Race,N
+894,21,Female,Caucasian/White,N
+918,22.4,Male,Asian,Y
+592,22.99,Male,Asian,N
+736,23,Male,Asian,N
+440,22.74,Male,Asian,N
+70,22.21,Female,Asian,N
+395,22.59,Female,Caucasian/White,N
+787,22.77,Female,Caucasian/White,N
+367,22.02,Female,Asian,N
+9,23.31,Male,Asian,N
+433,23.65,Male,Caucasian/White,N
+891,23.44,Female,Asian,N
+897,23.51,Female,Caucasian/White,N
+534,23.47,Female,Black/African American,N
+741,23.3,Female,Caucasian/White,Y
+439,24.23,Male,Asian,N
+711,24.31,Male,Asian,N
+472,24.16,Female,Caucasian/White,N
+358,25.01,Female,Caucasian/White,N
+810,24.4,Female,Asian,N
+506,24.6,Female,Asian,N
+877,25.05,Male,Asian,N
+875,25.97,Male,Caucasian/White,N
+337,25.31,Male,Black/African American,N
+618,25.93,Female,Caucasian/White,N
+133,12.98,Female,Caucasian/White,N
+850,15.92,Male,Caucasian/White,N
+957,14.52,Male,Caucasian/White,N
+386,25.26,Female,Caucasian/White,N
+959,17,Female,Caucasian/White,N
+916,8.14,Female,Asian,N
+859,10.25,Female,Caucasian/White,N
+1063,8.91,Female,Caucasian/White,N
+1183,15.02,Female,Black/African American,N
+1148,20.26,Male,Asian,N
+1182,17.84,Female,Black/African American,N
+139,12.35,Female,Caucasian/White,N
+1081,15.5,Male,Asian,N
+965,16.33,Female,Black/African American,N
+1223,17.74,Male,Caucasian/White,N
+1152,18.68,Female,Black/African American,N
+1250,18.04,Female,Black/African American,N
+1120,18.07,Female,Asian,N
+225,19.01,Female,Asian,N
+1225,19.17,Female,Asian,N
+1059,22.47,Male,Caucasian/White,N
+44,22.86,Male,Mixed Race,Y
+1006,23.1,Male,Caucasian/White,N
+1245,25.56,Male,Mixed Race,N
+1149,17.24,Female,Asian,N
+202,8.77,Male,Caucasian/White,N
+958,8.03,Female,Caucasian/White,N
+1143,15.64,Female,Caucasian/White,N
+1249,16.08,Female,Asian,N
+739,18.72,Male,Asian,N
+1179,8.01,Female,Caucasian/White,Y
+1302,15.46,Male,Caucasian/White,N
+1314,14.34,Male,Caucasian/White,N
+722,14.58,Female,Caucasian/White,N
+1352,15.24,Female,Caucasian/White,N
+1403,8.34,Female,Asian,N
+1463,8.18,Female,Caucasian/White,N
+1457,14.82,Female,Caucasian/White,N
+1484,25.22,Female,Caucasian/White,N
+1488,17.54,Male,Asian,N
+1601,18.78,Male,Mixed Race,Y
+1570,18.18,Male,Caucasian/White,N
+1692,19.39,Male,Caucasian/White,N
+1708,20.5,Male,Asian,N
+1624,21.73,Male,Mixed Race,N
+1724,25.86,Male,Mixed Race,Y
+1539,25.53,Male,Mixed Race,Y
+1756,25.5,Female,Caucasian/White,N
+1780,18.41,Male,Caucasian/White,N
+1685,18.51,Male,Caucasian/White,N
+1811,20.97,Male,Asian,N
+2144,13.95,Female,Asian,N
+813,13.01,Female,Caucasian/White,N
+1962,17.32,Male,Caucasian/White,N
+1980,14.34,Male,Caucasian/White,N
+2148,19.48,Male,Asian,N
+2190,23.67,Male,Caucasian/White,N
+2430,19.65,Male,Asian,N
+1801,23.02,Male,Caucasian/White,N
+2712,23.62,Male,Asian,N

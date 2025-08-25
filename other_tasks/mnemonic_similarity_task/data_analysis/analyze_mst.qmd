@@ -1,0 +1,164 @@
+---
+title: "Mnemonic Similarity Task Analysis Code: Python"
+author: "Nora Harhen"
+format: 
+  html:
+    highlight-style: solarized-light
+jupyter: python3
+engine: python
+execute:
+  echo: true
+  warning: false
+---
+
+
+```{python}
+import pandas as pd 
+import numpy as np 
+import scipy.stats as stats
+import matplotlib.pyplot as plt
+import seaborn as sns
+from collections import Counter
+from datetime import date, datetime,timedelta
+from glob import glob
+import pingouin as pg
+
+plt.rcParams["figure.figsize"] = (15, 10)
+plt.rcParams.update({'font.size': 22})
+```
+
+```{python}
+def calc_ldi(df):
+    lure_similar_resp = len(df.query("phase=='test' & trial_type == 'image' & condition =='TL' & key_press==66"))/len(df.query("phase=='test' & trial_type == 'image' &condition =='TL' & key_press in [66,78,86]"))
+    foil_similar_resp = len(df.query("phase=='test' & trial_type == 'image' & condition =='TF' & key_press==66"))/len(df.query("phase=='test' & trial_type == 'image' & condition =='TF' & key_press in [66,78,86]"))
+    ldi = lure_similar_resp - foil_similar_resp
+    return ldi
+
+def calc_rec(df):
+    repeat_old_resp = len(df.query("phase=='test' & trial_type == 'image' & condition =='TR' & key_press==86"))/len(df.query("phase=='test' & trial_type == 'image' & condition =='TR' & key_press in [66,78,86]"))
+    foil_old_resp = len(df.query("phase=='test' & trial_type == 'image' & condition =='TF' & key_press==86"))/len(df.query("phase=='test' & trial_type == 'image' & condition =='TF' & key_press in [66,78,86]"))
+    rec = repeat_old_resp - foil_old_resp
+    return rec
+
+def calc_all(df):
+    repeat_old_resp = len(df.query("phase=='test' & trial_type == 'image' & condition =='TR' & key_press==86"))
+    lure_similar_resp = len(df.query("phase=='test' & trial_type == 'image' & condition =='TL' & key_press==66"))
+    false_new_resp = len(df.query("phase=='test' & trial_type == 'image' & condition =='TF' & key_press==78"))
+    all_trials = len(df.query("phase=='test' & trial_type == 'image'& key_press in [66,78,86]"))
+
+    return (repeat_old_resp+lure_similar_resp+false_new_resp)/all_trials
+
+def get_sub_data(df):
+    subject_id = np.unique(df.participant_id)[0]
+    age = np.unique(df.age)[0]
+    ldi = calc_ldi(df)
+    rec = calc_rec(df)
+    all_ = calc_all(df)
+    
+    temp = pd.DataFrame({'subject_id':[subject_id,subject_id,subject_id],'age':[age,age,age],'measure':['ldi','rec','all'],'score':[ldi,rec,all_]})
+    return temp
+
+def get_all_subs(files):
+    subs = []
+    all_data = pd.DataFrame(columns = ['subject_id','age','measure','score'])
+    for f in files:
+        df=pd.read_csv(f)
+        print(f)
+        subject_id = np.unique(df.subject_id)[0]
+        if subject_id not in subs:
+            try:
+                sub_data = get_sub_data(df)
+                all_data = pd.concat([all_data,sub_data])
+                subs.append(subject_id)
+            except:
+                continue
+    return all_data
+
+def get_data():
+    file_prefix = "../data/*"
+    file_suffix = "*csv"
+    files = []
+    
+    start_date = date(2022, 1, 25) # first subject run 
+    now = datetime.now() # today's date 
+    end_date = date(now.year,now.month,now.day)   # perhaps date.now()
+    delta = end_date - start_date   # returns timedelta object which contains the days that falls between the start date and the current date 
+    
+    for i in range(delta.days + 1): # loop through days 
+        day = start_date + timedelta(days=i)
+        files_from_date = glob(file_prefix+str(day)+file_suffix) # get all the date collected on this day 
+        for f in files_from_date:
+            files.append(f) # add too files list 
+    return files
+```
+
+```{python}
+files = get_data()
+data = get_all_subs(files)
+
+save_data = False
+if save_data:
+    data.to_csv("cleaned_data_mst_data.csv",index=False)
+```
+
+```{python}
+context_bandits_included_subs = pd.read_csv("../../context_bandits/context_bandits_2day_6contexts_day2/data_analysis/random_effects_df_w_other_task_data.csv")
+context_bandits_included_subs = context_bandits_included_subs[['participant_id','age']]
+context_bandits_included_subs = context_bandits_included_subs.rename(columns={'participant_id':'subject_id','age':'age_precise'})
+
+subs_to_keep = list(context_bandits_included_subs.subject_id)
+
+data = data.query("subject_id in @subs_to_keep")
+data = pd.merge(data,context_bandits_included_subs,on='subject_id',how='left')
+```
+
+```{python}
+ldi_only = data.query("measure == 'ldi'")
+
+print(f"Mean: {np.mean(ldi_only.score)}")
+print(f"SD: {np.std(ldi_only.score)}")
+
+# test for above chance
+print(stats.ttest_1samp(ldi_only.score,0))
+
+# correlate with age
+print(pg.corr(ldi_only.score,ldi_only.age_precise,method='spearman'))
+
+```
+
+```{python}
+rec_only = data.query("measure == 'rec'")
+
+print(f"Mean: {np.mean(rec_only.score)}")
+print(f"SD: {np.std(rec_only.score)}")
+
+# test for above chance
+print(stats.ttest_1samp(rec_only.score,0))
+
+# correlate with age
+print(pg.corr(rec_only.score,rec_only.age_precise,method='spearman'))
+
+```
+
+
+```{python}
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
+
+# Plot LDI
+sns.regplot(x='age_precise', y='score', data=ldi_only, ci=95, 
+            scatter_kws={'color':'black'}, line_kws={'color':'black'}, ax=ax1)
+ax1.set_xlabel("age")
+ax1.set_ylabel("lure discrimination index")
+
+# Plot recognition
+sns.regplot(x='age_precise', y='score', data=rec_only, ci=95,
+            scatter_kws={'color':'black'}, line_kws={'color':'black'}, ax=ax2)
+ax2.set_xlabel("age") 
+ax2.set_ylabel("corrected recognition memory")
+
+plt.rcParams['font.family'] = 'Avenir'
+plt.tight_layout()
+
+plt.savefig("mst_age_correlations.png",dpi=300, bbox_inches='tight')
+
+```
